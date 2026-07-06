@@ -83,13 +83,34 @@ This test is fully reproducible — see "Reproducing this" below.
 
 ## 6. Reproducing this
 
+Two harnesses are included, testing the same three payloads against two
+different sources:
+
 ```bash
-npm install          # installs jsdom only
-node poc_test.js     # runs the three payloads above against the exact
-                      # extracted vendor code and prints the results
+npm install           # installs jsdom only
+node poc_test.js      # runs the payloads against the byte-for-byte extracted
+                       # vendor line described above
+node poc_test-2.js    # runs the same payloads against a full vendors.min.js
+                       # bundle (default: ./vendors.min.js), for confirming
+                       # the finding on a real production bundle rather than
+                       # a hand-extracted snippet
 ```
+
+`poc_test-2.js` doesn't rely on a hardcoded line number or a specific
+minified signature (e.g. `SplitText.create=function create`) to find
+SplitText, since different builds/minifiers rename internal variables and
+may not keep SplitText on its own line or in its own UMD wrapper — in one
+real bundle we tested, SplitText shared a single ~250k-character line with
+the full GSAP core and other unrelated vendor libraries. Instead it loads
+the *entire* bundle into a real jsdom `window` (the same way a browser
+`<script>` tag would) and reads the resulting `window.SplitText` global,
+however the minifier happened to name things internally. Both scripts print
+the text node's `nodeValue` before SplitText runs and the full
+`target.innerHTML` after, so the escaping can be inspected visually, and
+both concluded: no real elements created in any payload -> NOT exploitable.
 
 Files included:
 - `splittext_from_vendor.js` — byte-for-byte extract of `vendors.min.js:1431`
-- `poc_test.js` — the test harness described above
-- `run_output.txt` — captured output from an actual run
+- `poc_test.js` — test harness against `splittext_from_vendor.js`
+- `poc_test-2.js` — test harness against a full `vendors.min.js` bundle
+- `run_output.txt` — captured output from an actual `poc_test.js` run
